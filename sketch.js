@@ -7,7 +7,8 @@ let lightColors;
 let darkColors;
 let currentColors;
 let targetColors; 
-let lerpSpeed = 0.1; 
+let lerpSpeed = 0.15; 
+let color1, color2;
 
 function preload(){
   fontLiberation = loadFont("LiberationSans-Regular.ttf");  
@@ -19,20 +20,50 @@ function setup() {
   setupHelper(); 
 }
 
+function setupHelper() {
+  setupColors(); 
+  setupText(); 
+}
+
 window.themeChanged = (newTheme) => {
   transition = true;
-  currentColors = (newTheme === 'light') ? lightColors : darkColors;
+  lightColors = {
+    background: color(255, 255, 255),
+    txt: color(255, 255, 255)
+  };
+  darkColors = {
+    background: color(0, 0, 0),
+    txt: color(0, 0, 0)
+  };
+  targetColors = (newTheme === 'light') ? lightColors : darkColors;
 };
 
 function draw() {
+  if (transition) {
+    // Interpolate only if the transition flag is true
+    currentColors.background = lerpColor(currentColors.background, targetColors.background, lerpSpeed); 
+    currentColors.txt = lerpColor(currentColors.txt, targetColors.txt, lerpSpeed);
+
+    console.log("passed")
+    // Turn off the transition flag if the colors are close enough
+    if (dist(red(currentColors.background), green(currentColors.background), blue(currentColors.background),
+              red(targetColors.background), green(targetColors.background), blue(targetColors.background)) < 5) {
+                console.log("distance is less than 2"); 
+      currentColors = targetColors; 
+      transition = false;
+      console.log("transition ", transition)
+    }
+  }
+
   background(currentColors.background);
+  let gradientColor = lerpColor(color1, color2, mouseX / width);
+  noStroke(); 
+  // Set the background color based on the gradient color
+  fill(gradientColor)
+  ellipse(mouseX, mouseY, noise(1)*width/4); 
   drawText(currentColors.txt);
 }
  
-function colorTransition(originalColor, finalColor) {
-    originalColor.background = lerpColor(originalColor.background, finalColor.background, lerpSpeed);
-    originalColor.txt = lerpColor(originalColor.txt, finalColor.txt, lerpSpeed);
-}
 
 function drawText(color){
   for(let i = 0; i < messageArray.length; i++){
@@ -45,17 +76,22 @@ function drawText(color){
   }
 }
 
-function setupHelper() {
+function setupColors(){
+  color1 = color(255, 0, 150);  // Neon Pink
+  color2 = color(0, 255, 255); // Neon Cyan
   lightColors = {
     background: color(255, 255, 255),
-    txt: color(0, 0, 0)
+    txt: color(255, 255, 255)
   };
   darkColors = {
     background: color(0, 0, 0),
-    txt: color(255, 255, 255)
+    txt: color(0,0,0)
   };
   currentColors = lightColors;
-  targetColors = lightColors;
+  targetColors = lightColors; 
+}
+
+function setupText(){
   gridIncrement.width = width / 12;
   gridIncrement.height = height / 12;
   let words = message.split(" ");
@@ -76,7 +112,3 @@ function calculatePosition(base, increment, multiplier){
   //     line(0, j, width, j);
   //   }
   //
-
-  // Interpolating the colors
-  // currentColors.background = lerpColor(currentColors.background, targetColors.background, lerpSpeed);
-  // currentColors.txt = lerpColor(currentColors.txt, targetColors.txt, lerpSpeed);
