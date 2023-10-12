@@ -9,6 +9,8 @@ let currentColors;
 let targetColors; 
 let lerpSpeed = 0.15; 
 let color1, color2;
+let polys = []; 
+let polySize = {width: 225, height: 175}
 
 function preload(){
   fontLiberation = loadFont("LiberationSans-Regular.ttf");  
@@ -40,27 +42,39 @@ window.themeChanged = (newTheme) => {
 
 function draw() {
   if (transition) {
-    // Interpolate only if the transition flag is true
     currentColors.background = lerpColor(currentColors.background, targetColors.background, lerpSpeed); 
     currentColors.txt = lerpColor(currentColors.txt, targetColors.txt, lerpSpeed);
-
-    console.log("passed")
-    // Turn off the transition flag if the colors are close enough
+  
     if (dist(red(currentColors.background), green(currentColors.background), blue(currentColors.background),
               red(targetColors.background), green(targetColors.background), blue(targetColors.background)) < 5) {
                 console.log("distance is less than 2"); 
       currentColors = targetColors; 
       transition = false;
-      console.log("transition ", transition)
     }
   }
 
   background(currentColors.background);
   let gradientColor = lerpColor(color1, color2, mouseX / width);
   noStroke(); 
-  // Set the background color based on the gradient color
   fill(gradientColor)
-  ellipse(mouseX, mouseY, noise(1)*width/4); 
+  // ellipse(mouseX, mouseY, noise(1)*width/4); 
+  if (pmouseX !== mouseX && pmouseY !== mouseY) {
+    const v = [];
+    const n = 5;
+    for(let i = 0; i < n; i++) {
+      let a = i * (TAU/n);
+      v.push(createVector(mouseX + cos(a) * noise(a) * polySize.width, mouseY + sin(a) * noise(a) * polySize.height));
+    }
+    const poly = new Poly(v);
+    polys.push({poly, time: millis()});
+  }
+  polys = polys.filter(p => {
+    if (millis() - p.time < 2000) { 
+      waterColour(p.poly, color(255, 0, 150));
+      return true;
+    }
+    return false;
+  });
   drawText(currentColors.txt);
 }
  
@@ -104,6 +118,90 @@ function setupText(){
 function calculatePosition(base, increment, multiplier){
   return base + increment*multiplier; 
 }
+
+// POLYGON CLASS, WATERCOLOR, RAND, DISTRIBUTE FUNCTION BORROWED FROM BARNEY CODES: https://www.youtube.com/watch?v=olXv8GOfpNw
+class Poly {
+  constructor(vertices, modifiers) {
+    this.vertices = vertices;
+    if(!modifiers) {
+      modifiers = [];
+      for(let i = 0; i < vertices.length; i ++) {
+        modifiers.push(random(0.1, 0.8));
+      }
+    }
+    this.modifiers = modifiers;
+  }
+  
+  grow() {
+    const grownVerts = [];
+    const grownMods = [];
+    for(let i = 0; i < this.vertices.length; i ++) {
+      const j = (i + 1) % this.vertices.length;
+      const v1 = this.vertices[i];
+      const v2 = this.vertices[j];
+      
+      const mod = this.modifiers[i];
+      
+      const chmod = m => {
+        return m + (rand() - 0.5) * 0.1;
+      }
+      
+      grownVerts.push(v1);
+      grownMods.push(chmod(mod));
+      
+      const segment = p5.Vector.sub(v2, v1);
+      const len = segment.mag();
+      segment.mult(rand());
+      
+      const v = p5.Vector.add(segment, v1);
+      
+      segment.rotate(-PI/2 + (rand()-0.5) * PI/4);
+      segment.setMag(rand() * len/2 * mod);
+      v.add(segment);
+      
+      grownVerts.push(v);
+      grownMods.push(chmod(mod));
+    }
+    return new Poly(grownVerts, grownMods);
+  }
+  
+  dup() {
+    return new Poly(Array.from(this.vertices), Array.from(this.modifiers));
+  }
+  
+  draw() {
+    beginShape();
+    for(let v of this.vertices) {
+      vertex(v.x, v.y);
+    }
+    endShape(CLOSE);
+  }
+}
+
+function waterColour(poly, colour) {
+  const numLayers = 30;
+  fill(red(colour), green(colour), blue(colour), 255/(2 * numLayers));
+  noStroke();
+  
+  poly = poly.grow().grow();
+  
+  for(let i = 0; i < numLayers; i ++) {
+    if(i == int(numLayers/3) || i == int(2 * numLayers/3)) {
+      poly = poly.grow().grow();
+    }
+    
+    poly.grow().draw();
+  }  
+}
+
+function rand() {
+  return distribute(random(1));
+}
+
+function distribute(x) {
+  return pow((x - 0.5) * 1.58740105, 3) + 0.5;
+}
+
   // 12X12 Grid
   // for(let i = 0; i <= width; i+=gridIncrement.width){
   //   for(let j = 0; j <= height; j+= gridIncrement.height){   
@@ -112,3 +210,12 @@ function calculatePosition(base, increment, multiplier){
   //     line(0, j, width, j);
   //   }
   //
+
+  // let noiseValue = noise(frameCount * 0.1) * 200; // Adjust the multiplier values as needed
+  // let w = noiseValue + 50; // Minimum width of 50
+  // let h = noiseValue + 50; // Minimum height of 50
+  
+  // let gradientColor = lerpColor(color1, color2, mouseX / width);
+  // fill(gradientColor);
+  // noStroke();
+  // ellipse(mouseX, mouseY, w, h);
